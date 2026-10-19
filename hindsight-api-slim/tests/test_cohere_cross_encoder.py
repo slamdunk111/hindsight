@@ -206,6 +206,80 @@ class TestCohereCrossEncoder:
         assert "top_n" not in request["json"]
 
     @pytest.mark.asyncio
+    async def test_predict_alternative_score_key(self):
+        """Endpoints that name the field 'score' instead of 'relevance_score' still score."""
+
+        async def handler(request: web.Request) -> web.StreamResponse:
+            return web.json_response(
+                {
+                    "results": [
+                        {"index": 0, "score": 0.8},
+                        {"index": 1, "score": 0.2},
+                    ]
+                }
+            )
+
+        pairs = [("q", "doc a"), ("q", "doc b")]
+
+        async with stub_server(handler) as base_url:
+            encoder = CohereCrossEncoder(
+                api_key="test_key",
+                model="rerank-model",
+                base_url=f"{base_url}/rerank",
+            )
+            await encoder.initialize()
+            scores = await encoder.predict(pairs)
+
+        assert scores == [0.8, 0.2]
+
+    @pytest.mark.asyncio
+    async def test_predict_plain_scores_array(self):
+        """Endpoints returning {scores: [...], indices: [...]} instead of results are parsed."""
+
+        async def handler(request: web.Request) -> web.StreamResponse:
+            return web.json_response({"scores": [0.6, 0.1], "indices": [0, 1]})
+
+        pairs = [("q", "doc a"), ("q", "doc b")]
+
+        async with stub_server(handler) as base_url:
+            encoder = CohereCrossEncoder(
+                api_key="test_key",
+                model="rerank-model",
+                base_url=f"{base_url}/rerank",
+            )
+            await encoder.initialize()
+            scores = await encoder.predict(pairs)
+
+        assert scores == [0.6, 0.1]
+
+    @pytest.mark.asyncio
+    async def test_predict_out_of_range_index_ignored(self):
+        """An index outside the document list is skipped instead of raising IndexError."""
+
+        async def handler(request: web.Request) -> web.StreamResponse:
+            return web.json_response(
+                {
+                    "results": [
+                        {"index": 0, "relevance_score": 0.9},
+                        {"index": 9, "relevance_score": 0.5},
+                    ]
+                }
+            )
+
+        pairs = [("q", "doc a"), ("q", "doc b")]
+
+        async with stub_server(handler) as base_url:
+            encoder = CohereCrossEncoder(
+                api_key="test_key",
+                model="rerank-model",
+                base_url=f"{base_url}/rerank",
+            )
+            await encoder.initialize()
+            scores = await encoder.predict(pairs)
+
+        assert scores == [0.9, 0.0]
+
+    @pytest.mark.asyncio
     async def test_predict_multiple_queries(self):
         """Test prediction with multiple different queries (grouped efficiently)."""
         encoder = CohereCrossEncoder(

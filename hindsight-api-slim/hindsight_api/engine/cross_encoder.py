@@ -782,8 +782,18 @@ class _CohereCompatibleRerankClient:
 
             for item in result.get("results", []):
                 original_idx = item["index"]
-                score = item["relevance_score"]
-                all_scores[indices[original_idx]] = score
+                score = item.get("relevance_score", item.get("score"))
+                if score is not None and 0 <= original_idx < len(indices):
+                    all_scores[indices[original_idx]] = float(score)
+            # Some Cohere-compatible endpoints return a plain scores array instead of
+            # a results list (e.g. {scores: [...], indices: [...]}). Accept both shapes
+            # so a compliant-but-different server does not silently zero every score.
+            if not result.get("results") and isinstance(result.get("scores"), list):
+                rerank_scores = result["scores"]
+                rerank_indices = result.get("indices", list(range(len(rerank_scores))))
+                for original_idx, score in zip(rerank_indices, rerank_scores):
+                    if isinstance(original_idx, int) and 0 <= original_idx < len(indices):
+                        all_scores[indices[original_idx]] = float(score)
 
         return all_scores
 
