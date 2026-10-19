@@ -1323,6 +1323,11 @@ class OpenAICompatibleLLM(LLMInterface):
             # MiniMax requires temperature in (0.0, 1.0] — clamp accordingly
             if self.provider == "minimax":
                 temperature = max(0.01, min(temperature, 1.0))
+            # Strict OpenAI-compatible endpoints reject non-default temperature combined
+            # with json_schema/json_object response_format (HTTP 400). Structured output is
+            # effectively deterministic anyway, so sampling temperature buys nothing there.
+            if response_format is not None:
+                temperature = 0.0
             call_params["temperature"] = temperature
 
         # Set reasoning_effort when configured, or for models recognised as reasoning models
