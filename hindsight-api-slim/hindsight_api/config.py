@@ -1976,10 +1976,13 @@ DEFAULT_CONSOLIDATION_LLM_PARALLELISM = (
     # scopes degrade to sequential automatically; matches retain_max_concurrent.
 )
 DEFAULT_CONSOLIDATION_MAX_TOKENS = 512  # Max tokens for recall when finding related observations
-# Unset by default: the key is omitted from the LLM call so every provider keeps its current implicit output
-# budget — 100% backwards compatible. Operators on providers with a low hidden default (notably Bedrock imported
-# models, which cap at 4096 and truncate structured consolidation JSON) set this explicitly to fix #1939.
-DEFAULT_CONSOLIDATION_MAX_COMPLETION_TOKENS = None
+# Bounded by default: consolidation emits structured JSON (a few KB even for large batches), so an
+# explicit budget keeps a looping model from holding a serving slot for many minutes per attempt on
+# providers whose implicit default is large (OpenAI-compatible servers commonly default to 32K+ —
+# at ~35 tok/s that is a 15-minute generation per attempt). Set this env to 0 to omit the key from
+# the LLM call and restore the provider's implicit output budget (e.g. Bedrock imported models,
+# which truncate structured consolidation JSON at a low hidden cap — #1939).
+DEFAULT_CONSOLIDATION_MAX_COMPLETION_TOKENS = 8192
 DEFAULT_CONSOLIDATION_RECALL_BUDGET = "low"  # Budget level for consolidation recall (low/mid/high)
 DEFAULT_CONSOLIDATION_SOURCE_FACTS_MAX_TOKENS = (
     4096  # Total token budget for source facts in consolidation recall (-1 = unlimited)

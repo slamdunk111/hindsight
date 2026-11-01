@@ -332,15 +332,16 @@ def test_embedding_similarity_thresholds_must_be_between_zero_and_one(
         HindsightConfig.from_env()
 
 
-def test_consolidation_max_completion_tokens_defaults_to_unset():
-    """By default consolidation sends no explicit output budget (backwards compatible)."""
+def test_consolidation_max_completion_tokens_defaults_to_bounded():
+    """By default consolidation requests a bounded output budget (8192) instead of the
+    provider's implicit default, which can be 32K+ on OpenAI-compatible servers."""
     from hindsight_api.config import HindsightConfig
 
     os.environ["HINDSIGHT_API_LLM_PROVIDER"] = "mock"
     os.environ.pop("HINDSIGHT_API_CONSOLIDATION_MAX_COMPLETION_TOKENS", None)
 
     config = HindsightConfig.from_env()
-    assert config.consolidation_max_completion_tokens is None
+    assert config.consolidation_max_completion_tokens == 8192
 
 
 def test_consolidation_max_completion_tokens_env_override():

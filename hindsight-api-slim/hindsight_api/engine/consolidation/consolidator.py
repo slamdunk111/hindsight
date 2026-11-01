@@ -3967,11 +3967,11 @@ async def _consolidate_batch_with_llm(
                 "strict_schema": config.llm_strict_schema_consolidation,
                 "prompt_cache": prompt_cache,
             }
-            # Only request an explicit output budget when configured. Left unset by default the key is
-            # omitted, so each provider keeps its implicit default (backwards compatible). Operators on
-            # providers with a low hidden cap (notably Bedrock imported models, which truncate structured
-            # consolidation JSON) set HINDSIGHT_API_CONSOLIDATION_MAX_COMPLETION_TOKENS to fix it.
-            if config.consolidation_max_completion_tokens is not None:
+            # Send an explicit output budget whenever one is configured and positive (the default).
+            # A value of 0 (or None) omits the key so the provider keeps its implicit default — the
+            # escape hatch for providers with a low hidden cap (notably Bedrock imported models,
+            # which truncate structured consolidation JSON; #1939).
+            if config.consolidation_max_completion_tokens is not None and config.consolidation_max_completion_tokens > 0:
                 call_kwargs["max_completion_tokens"] = config.consolidation_max_completion_tokens
             if inner_max_retries is not None:
                 call_kwargs["max_retries"] = inner_max_retries

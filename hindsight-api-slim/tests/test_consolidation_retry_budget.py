@@ -161,6 +161,19 @@ class TestConsolidationRetryBudget:
         assert "max_completion_tokens" not in mock_llm_config.call.call_args.kwargs
 
     @pytest.mark.asyncio
+    async def test_max_completion_tokens_zero_omitted(self, mock_llm_config, mock_config):
+        """A value of 0 (the "provider implicit default" escape hatch) omits max_completion_tokens."""
+        mock_config.consolidation_max_completion_tokens = 0
+        await _consolidate_batch_with_llm(
+            llm_config=mock_llm_config,
+            memories=[{"id": "m1", "text": "test"}],
+            union_observations=[],
+            union_source_facts={},
+            config=mock_config,
+        )
+        assert "max_completion_tokens" not in mock_llm_config.call.call_args.kwargs
+
+    @pytest.mark.asyncio
     async def test_max_retries_not_passed_when_none(self, mock_llm_config, mock_config):
         """When consolidation_llm_max_retries is None, max_retries is not passed."""
         mock_config.consolidation_llm_max_retries = None
